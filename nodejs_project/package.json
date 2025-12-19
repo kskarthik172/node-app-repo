@@ -1,0 +1,13 @@
+{
+  "name": "sample-node-app",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "test": "jest --coverage",
+    "build": "tar -czf app.tar.gz server.js package.json node_modules"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
+
