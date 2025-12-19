@@ -4,7 +4,7 @@ pipeline {
     environment {
         APP_NAME = "sample-node-app"
         EC2_USER = "ec2-user"
-        EC2_HOST = "<EC2_PUBLIC_IP>"
+        EC2_HOST = "<52.66.251.229>"
         DEPLOY_PATH = "/opt/node-app"
     }
 
@@ -55,7 +55,7 @@ pipeline {
                     sh '''
                     curl -u $NEXUS_USER:$NEXUS_PASS \
                     --upload-file app.tar.gz \
-                    http://<NEXUS-IP>:8081/repository/node-artifacts/app.tar.gz
+                    http://13.233.48.0:8081/repository/node-artifacts/app.tar.gz
                     '''
                 }
             }
