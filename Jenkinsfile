@@ -3,13 +3,14 @@ pipeline {
 
     tools {
         nodejs 'node18'
+        sonarScanner 'SonarQube Scanner'
     }
 
     environment {
-        APP_NAME   = "sample-node-app"
-        EC2_USER   = "ec2-user"
-        EC2_HOST   = "13.200.222.111"
-        DEPLOY_PATH = "/opt/node-app"
+        APP_NAME     = "sample-node-app"
+        EC2_USER     = "ec2-user"
+        EC2_HOST     = "13.200.222.111"
+        DEPLOY_PATH  = "/opt/node-app"
     }
 
     stages {
@@ -23,7 +24,7 @@ pipeline {
         stage('Clean Workspace') {
             steps {
                 sh '''
-                rm -rf node_modules package-lock.json
+                rm -rf node_modules package-lock.json app.tar.gz
                 npm cache clean --force
                 '''
             }
@@ -52,9 +53,11 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Package Artifact') {
             steps {
-                sh 'npm run build'
+                sh '''
+                tar -czf app.tar.gz package.json package-lock.json server.js node_modules
+                '''
             }
         }
 
