@@ -6,10 +6,14 @@ pipeline {
     }
 
     environment {
-        APP_NAME    = "sample-node-app"
-        EC2_USER    = "ec2-user"
-        EC2_HOST    = "13.200.222.111"
-        DEPLOY_PATH = "/opt/node-app"
+        APP_NAME     = "sample-node-app"
+        EC2_USER     = "ec2-user"
+        EC2_HOST     = "13.200.222.111"
+        DEPLOY_PATH  = "/opt/node-app"
+
+        NEXUS_URL    = "http://13.127.155.166:8081"
+        NEXUS_REPO   = "node-artifacts"
+        ARTIFACT    = "app.tar.gz"
     }
 
     stages {
@@ -38,9 +42,7 @@ pipeline {
         stage('Test & SonarQube Analysis') {
             steps {
                 script {
-                    // Resolve SonarScanner tool in Groovy (NOT shell)
                     def scannerHome = tool 'SonarQube Scanner'
-
                     withSonarQubeEnv('SonarQube') {
                         withEnv(["PATH=${scannerHome}/bin:${env.PATH}"]) {
                             sh '''
@@ -71,6 +73,22 @@ pipeline {
             }
         }
 
+        stage('Upload Artifact to Nexus') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'nexus-cred',
+                    usernameVariable: 'NEXUS_USER',
+                    passwordVariable: 'NEXUS_PASS'
+                )]) {
+                    sh '''
+                    curl -v -u $NEXUS_USER:$NEXUS_PASS \
+                    --upload-file ${ARTIFACT} \
+                    ${NEXUS_URL}/repository/${NEXUS_REPO}/${APP_NAME}/${BUILD_NUMBER}/${ARTIFACT}
+                    '''
+                }
+            }
+        }
+
         stage('Deploy to EC2') {
             steps {
                 withCredentials([sshUserPrivateKey(
@@ -78,13 +96,15 @@ pipeline {
                     keyFileVariable: 'SSH_KEY'
                 )]) {
                     sh """
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${DEPLOY_PATH}"
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
+                        "mkdir -p ${DEPLOY_PATH}"
 
-                    scp -i $SSH_KEY app.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
+                    scp -i $SSH_KEY ${ARTIFACT} \
+                        ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
 
                     ssh -i $SSH_KEY ${EC2_USER}@${EC2_HOST} '
                         cd ${DEPLOY_PATH}
-                        tar -xzf app.tar.gz
+                        tar -xzf ${ARTIFACT}
                         npm install --production
                         pkill -f server.js || true
                         nohup node server.js > app.log 2>&1 &
