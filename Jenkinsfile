@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     tools {
-        nodejs 'node18'   // configure this in Jenkins → Tools
+        nodejs 'node18'
     }
 
     environment {
-        APP_NAME = "sample-node-app"
-        EC2_USER = "ec2-user"
-        EC2_HOST = "65.1.92.135"
+        APP_NAME   = "sample-node-app"
+        EC2_USER   = "ec2-user"
+        EC2_HOST   = "13.200.222.111"
         DEPLOY_PATH = "/opt/node-app"
     }
 
@@ -37,16 +37,16 @@ pipeline {
 
         stage('Test & SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('sonarqube-server') {
+                withSonarQubeEnv('SonarQube') {
                     sh '''
                     npm test
-                    ${SONAR_SCANNER_HOME}/bin/sonar-scanner
+                    sonar-scanner
                     '''
                 }
             }
         }
 
-        stage('Quality Gate 70%') {
+        stage('Quality Gate (70%)') {
             steps {
                 waitForQualityGate abortPipeline: true
             }
@@ -68,7 +68,7 @@ pipeline {
                     sh '''
                     curl -u $NEXUS_USER:$NEXUS_PASS \
                     --upload-file app.tar.gz \
-                    http://13.234.17.207:8081/repository/node-artifacts/app.tar.gz
+                    http://13.127.155.166:8081/repository/node-artifacts/app.tar.gz
                     '''
                 }
             }
@@ -81,11 +81,9 @@ pipeline {
                     keyFileVariable: 'SSH_KEY'
                 )]) {
                     sh """
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
-                    "mkdir -p ${DEPLOY_PATH}"
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${DEPLOY_PATH}"
 
-                    scp -i $SSH_KEY app.tar.gz \
-                    ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
+                    scp -i $SSH_KEY app.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
 
                     ssh -i $SSH_KEY ${EC2_USER}@${EC2_HOST} '
                         cd ${DEPLOY_PATH}
