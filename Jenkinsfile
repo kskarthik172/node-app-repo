@@ -1,10 +1,14 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'node18'   // configure this in Jenkins → Tools
+    }
+
     environment {
         APP_NAME = "sample-node-app"
         EC2_USER = "ec2-user"
-        EC2_HOST = "<52.66.251.229>"
+        EC2_HOST = "65.1.92.135"
         DEPLOY_PATH = "/opt/node-app"
     }
 
@@ -13,6 +17,15 @@ pipeline {
         stage('Checkout') {
             steps {
                 checkout scm
+            }
+        }
+
+        stage('Clean Workspace') {
+            steps {
+                sh '''
+                rm -rf node_modules package-lock.json
+                npm cache clean --force
+                '''
             }
         }
 
@@ -27,7 +40,7 @@ pipeline {
                 withSonarQubeEnv('sonarqube-server') {
                     sh '''
                     npm test
-                    sonar-scanner
+                    ${SONAR_SCANNER_HOME}/bin/sonar-scanner
                     '''
                 }
             }
@@ -55,7 +68,7 @@ pipeline {
                     sh '''
                     curl -u $NEXUS_USER:$NEXUS_PASS \
                     --upload-file app.tar.gz \
-                    http://13.233.48.0:8081/repository/node-artifacts/app.tar.gz
+                    http://13.234.17.207:8081/repository/node-artifacts/app.tar.gz
                     '''
                 }
             }
@@ -68,9 +81,8 @@ pipeline {
                     keyFileVariable: 'SSH_KEY'
                 )]) {
                     sh """
-                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} '
-                        mkdir -p ${DEPLOY_PATH}
-                    '
+                    ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
+                    "mkdir -p ${DEPLOY_PATH}"
 
                     scp -i $SSH_KEY app.tar.gz \
                     ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
@@ -79,7 +91,7 @@ pipeline {
                         cd ${DEPLOY_PATH}
                         tar -xzf app.tar.gz
                         npm install --production
-                        pkill node || true
+                        pkill -f server.js || true
                         nohup node server.js > app.log 2>&1 &
                     '
                     """
