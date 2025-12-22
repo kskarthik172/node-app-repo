@@ -3,7 +3,6 @@ pipeline {
 
     tools {
         nodejs 'node18'
-        sonarScanner 'SonarQube Scanner'
     }
 
     environment {
@@ -40,6 +39,7 @@ pipeline {
             steps {
                 withSonarQubeEnv('SonarQube') {
                     sh '''
+                    export PATH=$PATH:$(tool 'SonarQube Scanner')/bin
                     npm test
                     sonar-scanner
                     '''
@@ -61,22 +61,6 @@ pipeline {
             }
         }
 
-        stage('Push Artifact to Nexus') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'nexus-creds',
-                    usernameVariable: 'NEXUS_USER',
-                    passwordVariable: 'NEXUS_PASS'
-                )]) {
-                    sh '''
-                    curl -u $NEXUS_USER:$NEXUS_PASS \
-                    --upload-file app.tar.gz \
-                    http://13.127.155.166:8081/repository/node-artifacts/app.tar.gz
-                    '''
-                }
-            }
-        }
-
         stage('Deploy to EC2') {
             steps {
                 withCredentials([sshUserPrivateKey(
@@ -85,9 +69,7 @@ pipeline {
                 )]) {
                     sh """
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${DEPLOY_PATH}"
-
                     scp -i $SSH_KEY app.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
-
                     ssh -i $SSH_KEY ${EC2_USER}@${EC2_HOST} '
                         cd ${DEPLOY_PATH}
                         tar -xzf app.tar.gz
