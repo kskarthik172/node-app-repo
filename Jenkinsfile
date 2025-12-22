@@ -6,10 +6,10 @@ pipeline {
     }
 
     environment {
-        APP_NAME     = "sample-node-app"
-        EC2_USER     = "ec2-user"
-        EC2_HOST     = "13.200.222.111"
-        DEPLOY_PATH  = "/opt/node-app"
+        APP_NAME    = "sample-node-app"
+        EC2_USER    = "ec2-user"
+        EC2_HOST    = "13.200.222.111"
+        DEPLOY_PATH = "/opt/node-app"
     }
 
     stages {
@@ -37,12 +37,18 @@ pipeline {
 
         stage('Test & SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                    export PATH=$PATH:$(tool 'SonarQube Scanner')/bin
-                    npm test
-                    sonar-scanner
-                    '''
+                script {
+                    // Resolve SonarScanner tool in Groovy (NOT shell)
+                    def scannerHome = tool 'SonarQube Scanner'
+
+                    withSonarQubeEnv('SonarQube') {
+                        withEnv(["PATH=${scannerHome}/bin:${env.PATH}"]) {
+                            sh '''
+                            npm test
+                            sonar-scanner
+                            '''
+                        }
+                    }
                 }
             }
         }
@@ -56,7 +62,11 @@ pipeline {
         stage('Package Artifact') {
             steps {
                 sh '''
-                tar -czf app.tar.gz package.json package-lock.json server.js node_modules
+                tar -czf app.tar.gz \
+                  package.json \
+                  package-lock.json \
+                  server.js \
+                  node_modules
                 '''
             }
         }
@@ -69,7 +79,9 @@ pipeline {
                 )]) {
                     sh """
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} "mkdir -p ${DEPLOY_PATH}"
+
                     scp -i $SSH_KEY app.tar.gz ${EC2_USER}@${EC2_HOST}:${DEPLOY_PATH}
+
                     ssh -i $SSH_KEY ${EC2_USER}@${EC2_HOST} '
                         cd ${DEPLOY_PATH}
                         tar -xzf app.tar.gz
