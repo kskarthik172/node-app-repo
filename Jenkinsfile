@@ -6,13 +6,13 @@ pipeline {
     }
 
     environment {
-        APP_NAME     = "sample-node-app"
-        EC2_USER     = "ec2-user"
-        EC2_HOST     = "13.233.139.139"
-        DEPLOY_PATH  = "/opt/node-app"
+        APP_NAME    = "sample-node-app"
+        EC2_USER    = "ec2-user"
+        EC2_HOST    = "13.233.139.139"
+        DEPLOY_PATH = "/opt/node-app"
 
-        NEXUS_URL    = "http://13.232.63.14:8081"
-        NEXUS_REPO   = "node-artifacts"
+        NEXUS_URL   = "http://13.232.63.14:8081"
+        NEXUS_REPO  = "node-artifacts"
         ARTIFACT    = "app.tar.gz"
     }
 
@@ -44,11 +44,16 @@ pipeline {
                 script {
                     def scannerHome = tool 'SonarQube Scanner'
                     withSonarQubeEnv('SonarQube') {
-                        withEnv(["PATH=${scannerHome}/bin:${env.PATH}"]) {
-                            sh '''
-                            npm test
-                            sonar-scanner
-                            '''
+                        withCredentials([
+                            string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')
+                        ]) {
+                            withEnv(["PATH=${scannerHome}/bin:${env.PATH}"]) {
+                                sh '''
+                                npm test
+                                sonar-scanner \
+                                  -Dsonar.login=$SONAR_TOKEN
+                                '''
+                            }
                         }
                     }
                 }
@@ -75,15 +80,17 @@ pipeline {
 
         stage('Upload Artifact to Nexus') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'jenkins',
-                    usernameVariable: 'NEXUS_USER',
-                    passwordVariable: 'NEXUS_PASS'
-                )]) {
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'jenkins',
+                        usernameVariable: 'NEXUS_USER',
+                        passwordVariable: 'NEXUS_PASS'
+                    )
+                ]) {
                     sh '''
-                    curl -v -u $NEXUS_USER:$NEXUS_PASS \
-                    --upload-file ${ARTIFACT} \
-                    ${NEXUS_URL}/repository/${NEXUS_REPO}/${APP_NAME}/${BUILD_NUMBER}/${ARTIFACT}
+                    curl -u $NEXUS_USER:$NEXUS_PASS \
+                      --upload-file ${ARTIFACT} \
+                      ${NEXUS_URL}/repository/${NEXUS_REPO}/${APP_NAME}/${BUILD_NUMBER}/${ARTIFACT}
                     '''
                 }
             }
@@ -91,10 +98,12 @@ pipeline {
 
         stage('Deploy to EC2') {
             steps {
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'ec2-ssh-key',
-                    keyFileVariable: 'SSH_KEY'
-                )]) {
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'ec2-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    )
+                ]) {
                     sh """
                     ssh -i $SSH_KEY -o StrictHostKeyChecking=no ${EC2_USER}@${EC2_HOST} \
                         "mkdir -p ${DEPLOY_PATH}"
