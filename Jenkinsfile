@@ -8,10 +8,10 @@ pipeline {
     environment {
         APP_NAME     = "sample-node-app"
         EC2_USER     = "ec2-user"
-        EC2_HOST     = "13.200.222.111"
+        EC2_HOST     = "13.233.139.139"
         DEPLOY_PATH  = "/opt/node-app"
 
-        NEXUS_URL    = "http://13.127.155.166:8081"
+        NEXUS_URL    = "http://13.232.63.14:8081"
         NEXUS_REPO   = "node-artifacts"
         ARTIFACT    = "app.tar.gz"
     }
