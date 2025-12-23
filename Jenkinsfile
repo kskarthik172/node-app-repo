@@ -76,7 +76,7 @@ pipeline {
         stage('Upload Artifact to Nexus') {
             steps {
                 withCredentials([usernamePassword(
-                    credentialsId: 'nexus-cred',
+                    credentialsId: 'jenkins',
                     usernameVariable: 'NEXUS_USER',
                     passwordVariable: 'NEXUS_PASS'
                 )]) {
