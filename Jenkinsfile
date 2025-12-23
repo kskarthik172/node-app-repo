@@ -8,7 +8,7 @@ pipeline {
     environment {
         APP_NAME    = "sample-node-app"
         EC2_USER    = "ec2-user"
-        EC2_HOST    = "13.233.139.139"
+        EC2_HOST    = "13.232.160.108"
         DEPLOY_PATH = "/opt/node-app"
 
         NEXUS_URL   = "http://13.232.63.14:8081"
